@@ -1,4 +1,4 @@
-game_of_life_tutorials
-======================
+vector_additon
+==============
 
-This repository stores all of the OLCF game of life tutorials
+This repository stores all of the OLCF vector addition tutorials
