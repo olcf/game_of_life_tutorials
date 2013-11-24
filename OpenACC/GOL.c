@@ -95,10 +95,14 @@ int main(int argc, char* argv[])
     } // End main game loop
  
     // Sum up alive cells
-    #pragma acc kernels loop reduction(+:total)
-    for (i = 1; i <= dim; i++) {
-        for (j = 1; j <= dim; j++) {
-            total += grid[idx(i,j)];
+    #pragma acc parallel
+    {
+	#pragma acc loop reduction(+:total)
+        for (i = 1; i <= dim; i++) {
+	    #pragma acc loop reduction(+:total)
+            for (j = 1; j <= dim; j++) {
+                total += grid[idx(i,j)];
+            }
         }
     }
   } // End ACC Data region
