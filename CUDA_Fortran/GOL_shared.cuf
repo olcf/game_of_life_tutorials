@@ -1,0 +1,169 @@
+module kernel
+    contains
+ 
+    attributes(global) subroutine ghostCols_kernel(dim, grid)
+        integer,value :: dim
+        integer,device,dimension(dim+2,dim+2) :: grid
+        integer :: id
+ 
+        !We want id ?~H~H [2,dim+1]
+        !Get Global thread ID
+        id = (blockIdx%x-1) * blockDim%x + threadIdx%x + 1
+ 
+        if(id < dim+2) then
+            grid(id, dim+2) = grid(id, 2) !Copy first real column to right most ghost column
+            grid(id, 1) = grid(id, dim+1) !Copy last real column to left most ghost column
+        endif
+ 
+    end subroutine ghostCols_kernel
+ 
+    attributes(global) subroutine ghostRows_kernel(dim, grid)
+        integer,value :: dim
+        integer,device,dimension(dim+2,dim+2) :: grid
+        integer :: id
+ 
+        !We want id ?~H~H [1,dim+2]
+        !Get Global thread ID
+        id = (blockIdx%x-1) * blockDim%x + threadIdx%x
+ 
+        if(id <= dim+2) then
+            grid(dim+2, id) = grid(2, id) !Copy first real row to bottom ghost row
+            grid(1, id) = grid(dim+1 ,id) !Copy last real row to top ghost row
+        endif
+    end subroutine ghostRows_kernel
+ 
+    attributes(global) subroutine GOL_kernel(dim, grid, newGrid)
+        integer,value :: dim
+        integer,device,dimension(dim+2,dim+2) :: grid, newGrid
+        integer :: idx, idy, id, i, j, numNeighbors, cell
+ 
+        !Declare the shared memory on a per block level
+        integer,shared :: s_grid(16, 16)
+ 
+        !Get global thread IDs
+        idx = (blockIdx%x-1) * (blockDim%x-2) + threadIdx%x
+        idy = (blockIdx%y-1) * (blockDim%y-2) + threadIdx%y
+ 
+        !Get local thread IDs
+        i = threadIdx%y
+        j = threadIdx%x
+ 
+        !Copy cells into shared memory
+        if (idx <= dim+2 .AND. idy <= dim+2) then
+            s_grid(i,j) = grid(idy,idx)
+        endif
+ 
+        !Sync all threads in block
+        call syncthreads()
+ 
+        if (idx < dim+2 .AND. idy < dim+2) then
+            if (i /= 1 .AND. i /=blockDim%y .AND. j /=1 .AND. j /=blockDim%x) then
+ 
+                numNeighbors = s_grid(i,j+1) + s_grid(i,j-1) &     !right & left
+                             + s_grid(i+1,j) + s_grid(i-1,j) &     !upper & lower
+                             + s_grid(i+1,j+1) + s_grid(i-1,j-1) & !diagonals
+                             + s_grid(i-1,j+1) + s_grid(i+1,j-1)
+ 
+                cell = s_grid(i,j)
+ 
+                !Here we have explicitly all of the game rules
+                if(cell == 1 .AND. numNeighbors < 2) then
+                    newGrid(idy,idx) = 0
+                elseif(cell == 1 .AND. (numNeighbors == 2 .OR. numNeighbors == 3)) then
+                    newGrid(idy,idx) = 1
+                elseif(cell == 1 .AND. numNeighbors > 3) then
+                    newGrid(idy,idx) = 0
+                elseif(cell == 0 .AND. numNeighbors == 3) then
+                    newGrid(idy,idx) = 1
+                else
+                    newGrid(idy,idx) = cell
+                endif
+ 
+            endif
+        endif
+ 
+    end subroutine GOL_kernel
+end module kernel
+ 
+program main
+    use cudafor
+    use kernel
+ 
+    implicit none
+ 
+    integer :: i,j,iter,seed(8),numNeighbors,total
+    real :: randm
+    !Linear game grid dimension
+    integer :: dim = 1024
+    !Number of game iterations
+    integer :: maxIter = 2**10
+    integer :: blockDim = 16
+    type(dim3) :: cpyBlockSize, cpyColsGridSize, cpyRowsGridSize, blockSize, gridSize
+ 
+    !Host game grid array
+    integer,dimension(:,:),allocatable :: h_grid
+ 
+    !Device game grid array
+    integer,device,dimension(:,:),allocatable :: d_grid, d_newGrid
+ 
+    !Allocate square grid of (dim+2)^2 elements on host, 2 added for ghost cells
+    allocate(h_grid(dim+2,dim+2))
+ 
+    !Allocate grid on device
+    allocate(d_grid(dim+2,dim+2))
+    allocate(d_newGrid(dim+2,dim+2))
+ 
+    !Assign initial population randomly
+    seed = (/1985, 2011, 2012, 500, 24, 15, 99, 8/)
+    call random_seed(PUT=seed)
+    do j=1,dim
+        do i=1,dim
+            call random_number(randm)
+            h_grid(i,j) = nint(randm)
+        enddo
+    enddo
+ 
+    !Implicit copy of host vectors to device
+    d_grid = h_grid
+ 
+    !Set the number of threads per block and blocks per grid
+    cpyBlockSize    = dim3(blockDim, 1, 1)
+    cpyColsGridSize = dim3(ceiling(real(dim)/real(cpyBlockSize%x)), 1, 1)
+    cpyRowsGridSize = dim3(ceiling(real(dim+2)/real(cpyBlockSize%x)), 1, 1)
+ 
+    blockSize   = dim3(blockDim-2, blockDim-2, 1)
+    gridSize    = dim3(ceiling(real(dim)/real(blockSize%x-2)), &
+                    ceiling(real(dim)/real(blockSize%y-2)), 1)
+ 
+    !Main game loop
+    do iter=1,maxIter
+        !device pointers are not supported currently, so manually switch grid/newGrid
+        if(MOD(iter,2) == 1) then
+            call ghostCols_kernel<<<cpyColsGridSize, cpyBlockSize>>>(dim, d_grid)
+            call ghostRows_kernel<<<cpyRowsGridSize, cpyBlockSize>>>(dim, d_grid)
+            call GOL_kernel<<<gridSize,blockSize>>>(dim, d_grid, d_newGrid)
+        else
+            call ghostCols_kernel<<<cpyColsGridSize, cpyBlockSize>>>(dim, d_newGrid)
+            call ghostRows_kernel<<<cpyRowsGridSize, cpyBlockSize>>>(dim, d_newGrid)
+            call GOL_kernel<<<gridSize,blockSize>>>(dim, d_newGrid, d_grid)
+        endif
+    enddo
+ 
+    !Implicit copy of device vector back to host
+    h_grid = d_grid
+ 
+    !Sum up alive cells and print results
+    total = 0
+    do j=2,dim+1
+        do i=2,dim+1
+            total = total + h_grid(i,j)
+        enddo
+    enddo
+    print *, "Total Alive", total
+ 
+    !Release memory
+    deallocate(h_grid)
+    deallocate(d_grid)
+    deallocate(d_newGrid)
+ 
+end program
