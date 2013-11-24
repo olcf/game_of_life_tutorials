@@ -2,7 +2,7 @@ all: clean checkEnv setFlags GOL_c GOL_f
 
 .PHONY: checkEnv setFlags clean
 
-checkenv:
+checkEnv:
 ifdef CRAY_PRGENVCRAY
     ifndef HMPP_BIN_PATH
         ifndef CRAY_ACCEL_TARGET
