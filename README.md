@@ -1,4 +1,4 @@
-vector_additon
+Game of Life
 ==============
 
 The GOL is an example of cellular automaton that utilizes a 2 dimensional stencil. For each game iteration the integer value of each cell in the 2D game grid is determined by summing it’s 8 closest neighbors and then applying the game rules, with the initial game state randomly generated. Each cell has two states, alive or dead, represented as an integer 1 or 0. Periodic boundary conditions are enforced through the use of ghost cells. Cell updates are not propagated through until the end of each iteration, leaving the board static during calculations.
