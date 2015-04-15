@@ -40,7 +40,7 @@ __kernel void GOL(const int dim,
     int numNeighbors;
  
     // Declare the local memory on a per work group level
-    __local int s_grid[BLOCK_SIZE_y][BLOCK_SIZE_x];
+    __local int s_grid[LOCAL_SIZE_y][LOCAL_SIZE_x];
  
     // Copy cells into local memory
     if (ix <= dim+1 && iy <= dim+1)
@@ -50,7 +50,7 @@ __kernel void GOL(const int dim,
     barrier(CLK_LOCAL_MEM_FENCE);
  
     if (iy <= dim && ix <= dim) {
-        if(i != 0 && i !=BLOCK_SIZE_y-1 && j != 0 && j !=BLOCK_SIZE_x-1) {
+        if(i != 0 && i !=LOCAL_SIZE_y-1 && j != 0 && j !=LOCAL_SIZE_x-1) {
  
             // Get the number of neighbors for a given grid point
             numNeighbors = s_grid[i+1][j] + s_grid[i-1][j] //upper lower
