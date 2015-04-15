@@ -1,5 +1,8 @@
+#define LOCAL_SIZE_x 16
+#define LOCAL_SIZE_y 16
+
 __kernel void ghostRows(const int dim,
-                        __global *grid)
+                        __global int *grid)
 {
     // We want id to range from 1 to dim
     int id = get_global_id(0) + 1;
@@ -12,7 +15,7 @@ __kernel void ghostRows(const int dim,
 }
  
 __kernel void ghostCols(const int dim,
-                        __global *grid)
+                        __global int *grid)
 {
     // We want id to range from 0 to dim+1
     int id = get_global_id(0);
@@ -47,7 +50,7 @@ __kernel void GOL(const int dim,
     barrier(CLK_LOCAL_MEM_FENCE);
  
     if (iy <= dim && ix <= dim) {
-        if(i != 0 && i !=blockDim.y-1 && j != 0 && j !=blockDim.x-1) {
+        if(i != 0 && i !=BLOCK_SIZE_y-1 && j != 0 && j !=BLOCK_SIZE_x-1) {
  
             // Get the number of neighbors for a given grid point
             numNeighbors = s_grid[i+1][j] + s_grid[i-1][j] //upper lower
