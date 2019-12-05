@@ -20,17 +20,17 @@ __global__ void GOL(int dim, int *newGrid)
     if(iy < dim && ix < dim)
 {
     //Get the number of neighbors for a given grid point
-    numNeighbors = tex2D(gridTex, iyTex+oneTex, ixTex) //upper/lower
-                 + tex2D(gridTex, iyTex-oneTex, ixTex)
-                 + tex2D(gridTex, iyTex, ixTex+oneTex) //right/left
-                 + tex2D(gridTex, iyTex, ixTex-oneTex)
-                 + tex2D(gridTex, iyTex-oneTex, ixTex-oneTex) //diagonals
-                 + tex2D(gridTex, iyTex-oneTex, ixTex+oneTex)
-                 + tex2D(gridTex, iyTex+oneTex, ixTex-oneTex) 
-                 + tex2D(gridTex, iyTex+oneTex, ixTex+oneTex);
- 
-    int cell = tex2D(gridTex, iyTex, ixTex);
- 
+    numNeighbors = tex2D(gridTex, ixTex+oneTex, iyTex) //right/left
+                 + tex2D(gridTex, ixTex-oneTex, iyTex)
+                 + tex2D(gridTex, ixTex, iyTex+oneTex) //upper/lower
+                 + tex2D(gridTex, ixTex, iyTex-oneTex)
+                 + tex2D(gridTex, ixTex-oneTex, iyTex-oneTex) //diagonals
+                 + tex2D(gridTex, ixTex-oneTex, iyTex+oneTex)
+                 + tex2D(gridTex, ixTex+oneTex, iyTex-oneTex)
+                 + tex2D(gridTex, ixTex+oneTex, iyTex+oneTex);
+
+    int cell = tex2D(gridTex, ixTex, iyTex);
+
     //Here we have explicitly all of the game rules
     if (cell == 1 && numNeighbors < 2)
         newGrid[id] = 0;
@@ -77,8 +77,8 @@ int main(int argc, char* argv[])
     cudaBindTextureToArray(gridTex, d_grid);
  
     gridTex.normalized = true;
-    gridTex.addressMode[0] = cudaAddressModeWrap;
-    gridTex.addressMode[1] = cudaAddressModeWrap;
+    gridTex.addressMode[0] = cudaAddressModeBorder;
+    gridTex.addressMode[1] = cudaAddressModeBorder;
  
     dim3 dimBlock(8,8);
     int linGrid = (int)ceil(dim/(float)dimBlock.x);
