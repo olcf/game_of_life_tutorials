@@ -77,8 +77,8 @@ int main(int argc, char* argv[])
     cudaBindTextureToArray(gridTex, d_grid);
  
     gridTex.normalized = true;
-    gridTex.addressMode[0] = cudaAddressModeWrap;
-    gridTex.addressMode[1] = cudaAddressModeWrap;
+    gridTex.addressMode[0] = cudaAddressModeBorder;
+    gridTex.addressMode[1] = cudaAddressModeBorder;
  
     dim3 dimBlock(8,8);
     int linGrid = (int)ceil(dim/(float)dimBlock.x);
