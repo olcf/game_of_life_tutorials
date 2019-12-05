@@ -20,17 +20,17 @@ __global__ void GOL(int dim, int *newGrid)
     if(iy < dim && ix < dim)
 {
     //Get the number of neighbors for a given grid point
-    numNeighbors = tex2D(gridTex, iyTex+oneTex, ixTex) //upper/lower
-                 + tex2D(gridTex, iyTex-oneTex, ixTex)
-                 + tex2D(gridTex, iyTex, ixTex+oneTex) //right/left
-                 + tex2D(gridTex, iyTex, ixTex-oneTex)
-                 + tex2D(gridTex, iyTex-oneTex, ixTex-oneTex) //diagonals
-                 + tex2D(gridTex, iyTex-oneTex, ixTex+oneTex)
-                 + tex2D(gridTex, iyTex+oneTex, ixTex-oneTex) 
-                 + tex2D(gridTex, iyTex+oneTex, ixTex+oneTex);
- 
-    int cell = tex2D(gridTex, iyTex, ixTex);
- 
+    numNeighbors = tex2D(gridTex, ixTex+oneTex, iyTex) //right/left
+                 + tex2D(gridTex, ixTex-oneTex, iyTex)
+                 + tex2D(gridTex, ixTex, iyTex+oneTex) //upper/lower
+                 + tex2D(gridTex, ixTex, iyTex-oneTex)
+                 + tex2D(gridTex, ixTex-oneTex, iyTex-oneTex) //diagonals
+                 + tex2D(gridTex, ixTex-oneTex, iyTex+oneTex)
+                 + tex2D(gridTex, ixTex+oneTex, iyTex-oneTex)
+                 + tex2D(gridTex, ixTex+oneTex, iyTex+oneTex);
+
+    int cell = tex2D(gridTex, ixTex, iyTex);
+
     //Here we have explicitly all of the game rules
     if (cell == 1 && numNeighbors < 2)
         newGrid[id] = 0;
